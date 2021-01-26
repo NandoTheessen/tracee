@@ -830,10 +830,10 @@ func (t *Tracee) initBPF(bpfObjectPath string) error {
 			switch probe.attach {
 			case kprobe:
 				// todo: after updating minimal kernel version to 4.18, use without legacy
-				_, err = prog.AttachKprobeLegacy(probe.event)
+				_, err = prog.AttachKprobe(probe.event)
 			case kretprobe:
 				// todo: after updating minimal kernel version to 4.18, use without legacy
-				_, err = prog.AttachKretprobeLegacy(probe.event)
+				_, err = prog.AttachKretprobe(probe.event)
 			case tracepoint:
 				_, err = prog.AttachTracepoint(probe.event)
 			case rawTracepoint:

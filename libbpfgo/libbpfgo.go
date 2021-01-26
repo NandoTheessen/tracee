@@ -20,6 +20,8 @@ package libbpfgo
 extern void perfCallback(void *ctx, int cpu, void *data, __u32 size);
 extern void perfLostCallback(void *ctx, int cpu, __u64 cnt);
 
+extern void ringbufferCallback(void *ctx, void *data, __u32 size);
+
 int libbpf_print_fn(enum libbpf_print_level level,
 			   const char *format, va_list args)
 {
@@ -30,6 +32,15 @@ int libbpf_print_fn(enum libbpf_print_level level,
 
 void set_print_fn() {
 	libbpf_set_print(libbpf_print_fn);
+}
+
+struct ring_buffer * init_ring_buf(int map_fd, int page_cnt) {
+	struct ring_buffer *rb = NULL;
+	rb = ring_buffer__new(map_fd, ringbufferCallback, NULL, NULL); //
+	if (!rb) {
+		fprintf(stderr, "Failed to initialize ring buffer\n");
+        return NULL;
+	}
 }
 
 struct perf_buffer * init_perf_buf(int map_fd, int page_cnt) {
@@ -176,6 +187,7 @@ type Module struct {
 	obj      *C.struct_bpf_object
 	links    []*BPFLink
 	perfBufs []*PerfBuffer
+	ringBufs []*RingBuffer
 }
 
 type BPFMap struct {
@@ -210,6 +222,12 @@ type BPFLink struct {
 
 type PerfBuffer struct {
 	pb     *C.struct_perf_buffer
+	bpfMap *BPFMap
+	stop   chan bool
+}
+
+type RingBuffer struct {
+	rb     *C.struct_ring_buffer
 	bpfMap *BPFMap
 	stop   chan bool
 }
@@ -598,6 +616,63 @@ func doAttachKprobeLegacy(prog *BPFProg, kp string, isKretprobe bool) (*BPFLink,
 var eventChannels = make(map[uintptr]chan []byte)
 var lostChannels = make(map[uintptr]chan uint64)
 
+func (m *Module) InitRingBuf(mapName string, eventsChan chan []byte, lostChan chan uint64) (*RingBuffer, error) {
+	bpfMap, err := m.GetMap(mapName)
+	if err != nil {
+		return nil, err
+	}
+
+	ctx := uintptr(bpfMap.fd)
+	if eventsChan == nil {
+		return nil, fmt.Errorf("events channel can not be nil")
+	}
+	eventChannels[ctx] = eventsChan
+	lostChannels[ctx] = lostChan
+
+	rb := C.init_ring_buf()
+	if rb == nil {
+		return nil, fmt.Errorf("")
+	}
+
+	ringBuf := &RingBuffer{
+		rb:     rb,
+		bpfMap: bpfMap,
+		stop:   make(chan bool),
+	}
+	m.ringBufs = append(m.ringBufs, ringBuf)
+	return rb, nil
+}
+
+func (rb *RingBuffer) Start() {
+	go rb.poll()
+}
+
+func (rb *RingBuffer) Stop() {
+	rb.stop <- true
+}
+
+func (rb *PerfBuffer) Close() {
+	C.ring_buffer__free(rb.rb)
+}
+
+func (rb *RingBuffer) poll() error {
+	for {
+		select {
+		case <-rb.stop:
+			return nil
+		default:
+			err := C.ring_buffer__poll(rb.rb, 300)
+			if err < 0 {
+				if syscall.Errno(-err) == syscall.EINTR {
+					continue
+				}
+				return fmt.Errorf("Error polling perf buffer: %d", err)
+			}
+		}
+	}
+	return nil
+}
+
 func (m *Module) InitPerfBuf(mapName string, eventsChan chan []byte, lostChan chan uint64, pageCnt int) (*PerfBuffer, error) {
 	bpfMap, err := m.GetMap(mapName)
 	if err != nil {
@@ -605,7 +680,7 @@ func (m *Module) InitPerfBuf(mapName string, eventsChan chan []byte, lostChan ch
 	}
 	ctx := uintptr(bpfMap.fd)
 	if eventsChan == nil {
-		return nil, fmt.Errorf("failed to init perf buffer: events channel can not be nil!")
+		return nil, fmt.Errorf("failed to init perf buffer: events channel can not be nil")
 	}
 	eventChannels[ctx] = eventsChan
 	lostChannels[ctx] = lostChan

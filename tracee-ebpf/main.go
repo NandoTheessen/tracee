@@ -404,6 +404,7 @@ To 'escape' those operators, please use single quotes, e.g.: 'uid>0'
 		eventsNameToID[event.Name] = event.ID
 	}
 
+	fmt.Println("WHHA")
 	for _, f := range filters {
 		filterName := f
 		operatorAndValues := ""
