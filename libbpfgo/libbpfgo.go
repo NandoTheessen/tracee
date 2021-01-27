@@ -279,11 +279,15 @@ func NewModuleFromBuffer(bpfObjBuff []byte, bpfObjName string) (*Module, error) 
 }
 
 func (m *Module) Close() {
+
 	for _, pb := range m.perfBufs {
-		C.perf_buffer__free(pb.pb)
+		pb.Close()
+	}
+	for _, rb := range m.ringBufs {
+		rb.Close()
 	}
 	for _, link := range m.links {
-		C.bpf_link__destroy(link.link)
+		C.bpf_link__destroy(link.link) // this call will remove non-legacy kprobes
 		if link.linkType == KprobeLegacy {
 			cs := C.CString(link.eventName)
 			C.remove_kprobe_event(cs, false)
@@ -651,7 +655,7 @@ func (rb *RingBuffer) Stop() {
 	rb.stop <- true
 }
 
-func (rb *PerfBuffer) Close() {
+func (rb *RingBuffer) Close() {
 	C.ring_buffer__free(rb.rb)
 }
 
