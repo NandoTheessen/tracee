@@ -20,7 +20,7 @@ package libbpfgo
 extern void perfCallback(void *ctx, int cpu, void *data, __u32 size);
 extern void perfLostCallback(void *ctx, int cpu, __u64 cnt);
 
-extern void ringbufferCallback(void *ctx, void *data, __u32 size);
+extern int ringbufferCallback(void *ctx, void *data, size_t size);
 
 int libbpf_print_fn(enum libbpf_print_level level,
                const char *format, va_list args)
