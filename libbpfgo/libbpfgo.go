@@ -620,7 +620,7 @@ func doAttachKprobeLegacy(prog *BPFProg, kp string, isKretprobe bool) (*BPFLink,
 var eventChannels = make(map[uintptr]chan []byte)
 var lostChannels = make(map[uintptr]chan uint64)
 
-func (m *Module) InitRingBuf(mapName string, eventsChan chan []byte, lostChan chan uint64) (*RingBuffer, error) {
+func (m *Module) InitRingBuf(mapName string, eventsChan chan []byte) (*RingBuffer, error) {
 	bpfMap, err := m.GetMap(mapName)
 	if err != nil {
 		return nil, err
@@ -631,7 +631,6 @@ func (m *Module) InitRingBuf(mapName string, eventsChan chan []byte, lostChan ch
 		return nil, fmt.Errorf("events channel can not be nil")
 	}
 	eventChannels[ctx] = eventsChan
-	lostChannels[ctx] = lostChan
 
 	rb := C.init_ring_buf()
 	if rb == nil {
