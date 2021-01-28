@@ -34,13 +34,14 @@ void set_print_fn() {
     libbpf_set_print(libbpf_print_fn);
 }
 
-struct ring_buffer * init_ring_buf(int map_fd, int page_cnt) {
+struct ring_buffer * init_ring_buf(int map_fd) {
     struct ring_buffer *rb = NULL;
-    rb = ring_buffer__new(map_fd, ringbufferCallback, NULL, NULL); //
+    rb = ring_buffer__new(map_fd, ringbufferCallback, NULL, NULL);
     if (!rb) {
         fprintf(stderr, "Failed to initialize ring buffer\n");
         return NULL;
     }
+	return rb;
 }
 
 struct perf_buffer * init_perf_buf(int map_fd, int page_cnt) {
@@ -632,7 +633,7 @@ func (m *Module) InitRingBuf(mapName string, eventsChan chan []byte) (*RingBuffe
 	}
 	eventChannels[ctx] = eventsChan
 
-	rb := C.init_ring_buf()
+	rb := C.init_ring_buf(bpfMap.fd)
 	if rb == nil {
 		return nil, fmt.Errorf("")
 	}
@@ -643,7 +644,7 @@ func (m *Module) InitRingBuf(mapName string, eventsChan chan []byte) (*RingBuffe
 		stop:   make(chan bool),
 	}
 	m.ringBufs = append(m.ringBufs, ringBuf)
-	return rb, nil
+	return ringBuf, nil
 }
 
 func (rb *RingBuffer) Start() {
