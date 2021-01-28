@@ -23,24 +23,24 @@ extern void perfLostCallback(void *ctx, int cpu, __u64 cnt);
 extern void ringbufferCallback(void *ctx, void *data, __u32 size);
 
 int libbpf_print_fn(enum libbpf_print_level level,
-			   const char *format, va_list args)
+               const char *format, va_list args)
 {
-	if (level != LIBBPF_WARN)
-		return 0;
-	return vfprintf(stderr, format, args);
+    if (level != LIBBPF_WARN)
+        return 0;
+    return vfprintf(stderr, format, args);
 }
 
 void set_print_fn() {
-	libbpf_set_print(libbpf_print_fn);
+    libbpf_set_print(libbpf_print_fn);
 }
 
 struct ring_buffer * init_ring_buf(int map_fd, int page_cnt) {
-	struct ring_buffer *rb = NULL;
-	rb = ring_buffer__new(map_fd, ringbufferCallback, NULL, NULL); //
-	if (!rb) {
-		fprintf(stderr, "Failed to initialize ring buffer\n");
+    struct ring_buffer *rb = NULL;
+    rb = ring_buffer__new(map_fd, ringbufferCallback, NULL, NULL); //
+    if (!rb) {
+        fprintf(stderr, "Failed to initialize ring buffer\n");
         return NULL;
-	}
+    }
 }
 
 struct perf_buffer * init_perf_buf(int map_fd, int page_cnt) {
